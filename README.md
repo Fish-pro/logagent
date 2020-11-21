@@ -5,7 +5,7 @@
 + sarama往kafka写日志（https://github.com/Shopify/sarama）
 ## windows
 ### java
-https://www.oracle.com/
+https://www.oracle.com/java/
 ### kafka
 http://kafka.apache.org/
 ### zookeeper
