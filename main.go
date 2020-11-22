@@ -3,25 +3,25 @@ package main
 import (
 	"fmt"
 	"github.com/Fish-pro/logagent/config"
+	"github.com/Fish-pro/logagent/etcd"
 	"github.com/Fish-pro/logagent/kafka"
-	"github.com/Fish-pro/logagent/taillog"
 	"gopkg.in/ini.v1"
 	"os"
 	"time"
 )
 
-func run(conf *config.AppConfig) {
-	// 1.读取日志
-	for {
-		select {
-		case line := <-taillog.ReadChan():
-			// 2.发送到kafka
-			kafka.SendToKafka(conf.Kafka.Topic, line.Text)
-		default:
-			time.Sleep(time.Second)
-		}
-	}
-}
+//func run(conf *config.AppConfig) {
+//	// 1.读取日志
+//	for {
+//		select {
+//		case line := <-taillog.ReadChan():
+//			// 2.发送到kafka
+//			kafka.SendToKafka(conf.Kafka.Topic, line.Text)
+//		default:
+//			time.Sleep(time.Second)
+//		}
+//	}
+//}
 
 func main() {
 	// 0.加载配置文件
@@ -46,13 +46,32 @@ func main() {
 	}
 	fmt.Println("init kafka success")
 
-	// 2.打开日志文件收集日志
-	err = taillog.Init(conf.Tail.FileName)
+	err = etcd.Init(conf.Etcd.Address, time.Duration(conf.Etcd.Timeout)*time.Second)
 	if err != nil {
-		fmt.Printf("init taillog failed, error:%v\n", err)
+		fmt.Printf("init etcd failed,error:%v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("init tail success")
+	fmt.Println("init etcd success")
 
-	run(&conf)
+	// 2.1从etcd获取要拉取的日志项
+	logEntrys, err := etcd.Getconfig(conf.Etcd.Key)
+	if err != nil {
+		fmt.Printf("get entrys failed,error:%v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("get config from etcd success:", logEntrys)
+	for index, value := range logEntrys {
+		fmt.Printf("index:%v,value:%v\n", index, value)
+	}
+	// 2.2哨兵监视日志获取项是否有变化
+
+	// 2.打开日志文件收集日志
+	//err = taillog.Init(conf.Tail.FileName)
+	//if err != nil {
+	//	fmt.Printf("init taillog failed, error:%v\n", err)
+	//	os.Exit(1)
+	//}
+	//fmt.Println("init tail success")
+	//
+	//run(&conf)
 }
