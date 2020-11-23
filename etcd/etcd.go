@@ -3,6 +3,7 @@ package etcd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/coreos/etcd/clientv3"
 	"time"
 )
@@ -24,7 +25,7 @@ func Init(address string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	// test data
+	//test data
 	//value := `[{"path":"/tmp/redis.log","topic":"redis_log"},{"path":"/tmp/web.log","topic":"web_log"}]`
 	//client.Put(context.Background(), "/logagent/collect_config", value)
 	return nil
@@ -46,4 +47,23 @@ func Getconfig(key string) ([]*LogEntry, error) {
 		}
 	}
 	return logEntrys, nil
+}
+
+func WatchConfig(key string, newConfChan chan<- []*LogEntry) {
+	ch := client.Watch(context.Background(), key)
+	for wresp := range ch {
+		for _, evt := range wresp.Events {
+			fmt.Printf("type:%v key:%v value:%v\n", evt.Type, string(evt.Kv.Key), string(evt.Kv.Value))
+			var newConf []*LogEntry
+			if evt.Type != clientv3.EventTypeDelete {
+				err := json.Unmarshal(evt.Kv.Value, &newConf)
+				if err != nil {
+					fmt.Printf("unmarshal failed,err:%v]n", err)
+					continue
+				}
+				fmt.Printf("get new config:%v\n", newConf)
+			}
+			newConfChan <- newConf
+		}
+	}
 }

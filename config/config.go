@@ -7,6 +7,7 @@ type AppConfig struct {
 
 type KafkaConfig struct {
 	Address string `ini:"address"`
+	MaxSize int    `ini:"chan_max_size"`
 }
 
 type EtcdConfig struct {

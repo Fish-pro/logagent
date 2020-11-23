@@ -3,15 +3,22 @@ package kafka
 import (
 	"fmt"
 	"github.com/Shopify/sarama"
+	"time"
 )
 
 // 专门往kafka中写入日志文件
 
+type logData struct {
+	topic string
+	data  string
+}
+
 var (
-	client sarama.SyncProducer
+	client      sarama.SyncProducer
+	logDataChan chan *logData
 )
 
-func Init(addrs []string) error {
+func Init(addrs []string, maxSize int) error {
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Partitioner = sarama.NewRandomPartitioner
@@ -22,19 +29,28 @@ func Init(addrs []string) error {
 	if err != nil {
 		return err
 	}
+	logDataChan = make(chan *logData, maxSize)
+	go sendToKafka()
 	return nil
 }
 
-func SendToKafka(topic, data string) error {
-	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		Value: sarama.StringEncoder(data),
-	}
+func SendToChan(topic, data string) {
+	msg := &logData{topic: topic, data: data}
+	logDataChan <- msg
+}
 
-	pid, offset, err := client.SendMessage(msg)
-	if err != nil {
-		return err
+func sendToKafka() {
+	for {
+		select {
+		case ld := <-logDataChan:
+			msg := &sarama.ProducerMessage{
+				Topic: ld.topic,
+				Value: sarama.StringEncoder(ld.data),
+			}
+			pid, offset, _ := client.SendMessage(msg)
+			fmt.Printf("pid:%v,offset:%v\n", pid, offset)
+		default:
+			time.Sleep(time.Millisecond * 50)
+		}
 	}
-	fmt.Printf("pid:%v,offset:%v\n", pid, offset)
-	return nil
 }

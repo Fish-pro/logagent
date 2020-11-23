@@ -2,16 +2,28 @@ package taillog
 
 import (
 	"fmt"
+	"github.com/Fish-pro/logagent/kafka"
 	"github.com/hpcloud/tail"
 )
 
 // 专门收集日志文件
 
-var (
-	tailObj *tail.Tail
-)
+type TailTask struct {
+	Path     string
+	Topic    string
+	Instance *tail.Tail
+}
 
-func Init(fileName string) error {
+func NewTailTask(path, topic string) *TailTask {
+	tailTask := &TailTask{
+		Path:  path,
+		Topic: topic,
+	}
+	tailTask.Init()
+	return tailTask
+}
+
+func (t *TailTask) Init() error {
 	config := tail.Config{
 		Location:  &tail.SeekInfo{Offset: 0, Whence: 2},
 		ReOpen:    true,
@@ -21,14 +33,21 @@ func Init(fileName string) error {
 	}
 
 	var err error
-	tailObj, err = tail.TailFile(fileName, config)
+	t.Instance, err = tail.TailFile(t.Path, config)
 	if err != nil {
 		fmt.Println("tail file failed, error:", err)
 		return err
 	}
+	go t.Run()
 	return nil
 }
 
-func ReadChan() <-chan *tail.Line {
-	return tailObj.Lines
+func (t *TailTask) Run() {
+	for {
+		select {
+		case line := <-t.Instance.Lines:
+			//kafka.SendToKafka(t.Topic, line.Text)
+			kafka.SendToChan(t.Topic, line.Text)
+		}
+	}
 }
