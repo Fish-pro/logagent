@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Fish-pro/logagent/config"
 	"github.com/Fish-pro/logagent/etcd"
+	"github.com/Fish-pro/logagent/getip"
 	"github.com/Fish-pro/logagent/kafka"
 	"github.com/Fish-pro/logagent/taillog"
 	"gopkg.in/ini.v1"
@@ -37,8 +38,16 @@ func main() {
 	}
 	fmt.Println("init etcd success")
 
-	// 2.1从etcd获取要拉取的日志项
-	logEntrys, err := etcd.Getconfig(conf.Etcd.Key)
+	// 为了实现每个logagent都拉取自己的配置，需要替换collect_log_key
+	ip, err := getip.GetOutBoundIP()
+	if err != nil {
+		fmt.Printf("get local getip error:%v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("local getip is:%s\n", ip)
+	cKey := fmt.Sprintf(conf.Etcd.Key, ip)
+	// 2.1从etcd获取要拉取日志项
+	logEntrys, err := etcd.Getconfig(cKey)
 	if err != nil {
 		fmt.Printf("get entrys failed,error:%v\n", err)
 		os.Exit(1)
@@ -47,7 +56,7 @@ func main() {
 
 	taillog.Init(logEntrys)
 
-	// 排一个哨兵
+	// 哨兵
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go etcd.WatchConfig(conf.Etcd.Key, taillog.NewConfChan())

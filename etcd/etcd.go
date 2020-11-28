@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var client *clientv3.Client
+var Client *clientv3.Client
 
 type LogEntry struct {
 	Path  string `json:"path"`
@@ -18,16 +18,13 @@ type LogEntry struct {
 // 初始化etcd
 func Init(address string, timeout time.Duration) error {
 	var err error
-	client, err = clientv3.New(clientv3.Config{
+	Client, err = clientv3.New(clientv3.Config{
 		Endpoints:   []string{address},
 		DialTimeout: timeout,
 	})
 	if err != nil {
 		return err
 	}
-	//test data
-	//value := `[{"path":"/tmp/redis.log","topic":"redis_log"},{"path":"/tmp/web.log","topic":"web_log"}]`
-	//client.Put(context.Background(), "/logagent/collect_config", value)
 	return nil
 }
 
@@ -35,7 +32,7 @@ func Init(address string, timeout time.Duration) error {
 func Getconfig(key string) ([]*LogEntry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	resp, err := client.Get(ctx, key)
+	resp, err := Client.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +47,7 @@ func Getconfig(key string) ([]*LogEntry, error) {
 }
 
 func WatchConfig(key string, newConfChan chan<- []*LogEntry) {
-	ch := client.Watch(context.Background(), key)
+	ch := Client.Watch(context.Background(), key)
 	for wresp := range ch {
 		for _, evt := range wresp.Events {
 			fmt.Printf("type:%v key:%v value:%v\n", evt.Type, string(evt.Kv.Key), string(evt.Kv.Value))
