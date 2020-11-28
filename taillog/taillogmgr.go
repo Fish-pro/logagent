@@ -22,8 +22,9 @@ func Init(logConf []*etcd.LogEntry) {
 	}
 	for index, value := range tskMgr.logEntry {
 		fmt.Printf("index:%v,value:%v\n", index, value)
-		// 3.收集日志，发往kafka
-		NewTailTask(value.Path, value.Topic)
+		task := NewTailTask(value.Path, value.Topic)
+		mk := fmt.Sprintf("%s_%s", value.Path, value.Topic)
+		tskMgr.taskMap[mk] = task
 	}
 	go tskMgr.run()
 }
@@ -34,6 +35,29 @@ func (t *TailLogMgr) run() {
 		select {
 		case newConf := <-t.newConfChan:
 			fmt.Println(newConf)
+			for _, conf := range newConf {
+				mk := fmt.Sprintf("%s_%s", conf.Path, conf.Topic)
+				_, ok := t.taskMap[mk]
+				if !ok {
+					// 原来就有
+					task := NewTailTask(conf.Path, conf.Topic)
+					t.taskMap[mk] = task
+				}
+			}
+			for _, c1 := range t.logEntry {
+				isDelete := true
+				for _, c2 := range newConf {
+					if c2.Path == c1.Path && c2.Topic == c1.Topic {
+						isDelete = false
+						break
+					}
+				}
+				if isDelete {
+					mk := fmt.Sprintf("%s_%s", c1.Path, c1.Topic)
+					t.taskMap[mk].cancelFunc()
+				}
+			}
+
 		default:
 			time.Sleep(time.Second)
 		}

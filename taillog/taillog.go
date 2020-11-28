@@ -1,6 +1,7 @@
 package taillog
 
 import (
+	"context"
 	"fmt"
 	"github.com/Fish-pro/logagent/kafka"
 	"github.com/hpcloud/tail"
@@ -9,15 +10,20 @@ import (
 // 专门收集日志文件
 
 type TailTask struct {
-	Path     string
-	Topic    string
-	Instance *tail.Tail
+	Path       string
+	Topic      string
+	Instance   *tail.Tail
+	ctx        context.Context
+	cancelFunc context.CancelFunc
 }
 
 func NewTailTask(path, topic string) *TailTask {
+	ctx, cancel := context.WithCancel(context.Background())
 	tailTask := &TailTask{
-		Path:  path,
-		Topic: topic,
+		Path:       path,
+		Topic:      topic,
+		ctx:        ctx,
+		cancelFunc: cancel,
 	}
 	tailTask.Init()
 	return tailTask
@@ -45,6 +51,9 @@ func (t *TailTask) Init() error {
 func (t *TailTask) Run() {
 	for {
 		select {
+		case <-t.ctx.Done():
+			fmt.Printf("tail task:%v 结束了\n", fmt.Sprintf("%s_%s", t.Path, t.Topic))
+			return
 		case line := <-t.Instance.Lines:
 			//kafka.SendToKafka(t.Topic, line.Text)
 			kafka.SendToChan(t.Topic, line.Text)
