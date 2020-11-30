@@ -11,7 +11,7 @@ require (
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/hpcloud/tail v1.0.0
-	go.etcd.io/etcd v3.3.25+incompatible // indirect
+	go.etcd.io/etcd v3.3.25+incompatible
 	go.uber.org/zap v1.16.0 // indirect
 	google.golang.org/grpc v1.33.2 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
